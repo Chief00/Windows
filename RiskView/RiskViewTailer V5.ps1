@@ -15,11 +15,34 @@ Write-Host "
 "
 }
 
-function choiceLoop ($Low, $High, $userFunction){
-    $choice = ""
-	while (($choice -lt $Low) -or ($choice -gt $High)){
-        $choice = $userFunction
-	}
+function choiceLoop ($High, $choice, $subChoice){
+	while (($choice -lt 0) -or ($choice -gt $High)){
+        if ($choice -eq "?"){
+            choiceHelp $choiceArray $choiceArrayDesc
+        }
+        if ($choice -eq "Search"){
+            if ($subChoice -eq "?"){
+                choiceHelp $searchSubChoiceArray $searchSubChoiceArrayDesc
+            }
+        }
+    return $choice
+    }
+}
+
+function choiceExceptions ($choice, $subChoice) {
+    if ($choice -eq "?") {
+        choiceHelp $choiceArray $choiceArrayDesc
+        continue
+    }
+    if ($choice -eq "b") {
+        break
+    }
+    if ($choice -eq "Search") {
+        if ($subChoice -eq "?") {
+            choiceHelp $searchSubChoiceArray $searchSubChoiceArrayDesc
+            continue
+        }
+    }
 }
 
 function userChoicesList ($title, $choiceArray) {
@@ -28,11 +51,13 @@ function userChoicesList ($title, $choiceArray) {
     for ($i = 0; $i -lt $choiceArray.length; $i++) {
         Write-Host "[$i]" $choiceArray[$i]
     }
+    Write-Host "[?] Help"
     $choice = Read-Host "`n`nWhat do you choose? "
     return $choice
 }
 
 function mainChoice {
+
     cls
     printLogo
     $choice = userChoicesList "What do you want to tail: " $choiceArray
@@ -40,10 +65,24 @@ function mainChoice {
 }
 
 function searchSubChoice {
+
     cls
     printLogo
     $choice = userChoicesList "What type of search: " $searchSubChoiceArray
     return $choice
+}
+
+function choiceHelp ($Array, $ArrayDesc){
+
+    cls
+    printLogo
+    for ($i = 0; $i -lt $Array.length; $i++) {
+        Write-Host
+        Write-Host "[$i]" $Array[$i]
+        Write-Host "   " $ArrayDesc[$i]
+        Write-Host `n
+    }
+    Read-Host "Press ENTER to return "
 }
 
 
@@ -69,11 +108,14 @@ function logChoice ($choice){
         $subChoice = ""
         while (($subChoice -lt 0) -or ($subChoice -gt $searchSubChoiceArray.length)){
             $subChoice = searchSubChoice
-            if (($subChoice -lt 0) -or ($subChoice -gt $searchSubChoiceArray.length)){
+            if ($subChoice -eq "?"){
+                choiceHelp $searchSubChoiceArray $searchSubChoiceArrayDesc
+            }elseif (($subChoice -lt 0) -or ($subChoice -gt $searchSubChoiceArray.length)){
                 continue
             }
             $subChoice = logSearchChoice $searchSubChoiceArray[$subChoice]
         }
+        $choice = ""
     }
 
 
@@ -84,6 +126,7 @@ function logChoice ($choice){
     if ($choice -eq "Current File"){
         get-content riskview-cs.log -wait -Tail ((select-string riskview-cs.log -Pattern ":" | select-object -ExpandProperty 'LineNumber' -Last 1)-(select-string riskview-cs.log -Pattern "Requesting project details" | select-object -ExpandProperty 'LineNumber' -Last 1)+1) | where {$_.contains("[FileGathererToItems] Processing file") -Or $_.contains("[TikaFileGathererBase] File Excluded")}
     }
+    return $choice
 }
 
 function logSearchChoice ($subChoice) {
@@ -117,29 +160,40 @@ function logSearchChoice ($subChoice) {
         $userString = Read-Host "What do you want to search? "
         get-content riskview-cs.log -wait -Tail ((select-string riskview-cs.log -Pattern ":" | select-object -ExpandProperty 'LineNumber' -Last 1)-(select-string riskview-cs.log -Pattern "Requesting project details" | select-object -ExpandProperty 'LineNumber' -Last 1)+1) | where {$_.contains($userString)}
     }
-
     return $ynLoop
 }
 
-function choiceHelp {
-    cls
-    Write-Host "Hello"
-    Read-Host "Press Enter to continue "
-}
+
+
+$choiceArray = "App Opened", "Last Gather", "Never", "All", "Search", "RAM Usage", "Current File"
+$searchSubChoiceArray = "Simple", "Extra", "Tailing"
+
+$choiceArrayDesc =
+"This will display the log since the app was opened and then tail it.",
+"This will display the log since the last gather was run and then tail it.",
+"This will just tail the log from the last line, not showing the log previous to the last line.",
+"This will display the whole log and then tail it.",
+"You can search the log for phrases.",
+"This will tail the log for the RAM usage.",
+"This will tail the log only displaying the current file being processed and any excluded files."
+
+$searchSubChoiceArrayDesc=
+"This will do a simple search in the log for a phrase.",
+"This will do a search and display n extra lines after the matched phrases line.",
+"This will search the log for the occurance of the phrase and display them all. `n    Then tail the log only displaying lines that contain the phrase.`n    This is CaSe SeNsItIvE!!"
 
 # This is the user main input loop
 $userChoice = ""
-$choiceArray = "Since App Opened", "Since Last Gather", "Never", "All", "Search", "Ram Usage", "Current File"
-$searchSubChoiceArray = "Simple", "Extra", "Tailing"
+
 while (($userChoice -lt 0) -or ($userChoice -gt $choiceArray.length-1)){
     $userChoice = ""
     $userChoice = $(mainChoice)
     if ($userChoice -eq "?"){
-        choiceHelp
+        choiceHelp $choiceArray $choiceArrayDesc
     }elseif (($userChoice -lt 0) -or ($userChoice -gt $choiceArray.length-1)){
         continue
     }
-    logChoice $choiceArray[$userChoice]
+    $userChoice = logChoice $choiceArray[$userChoice]
 }
 
 
