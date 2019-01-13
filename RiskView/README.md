@@ -1,4 +1,4 @@
-# **RiskView QOL Programs** - Windows
+# RiskView QOL Programs - Windows
 
 
 * RiskView Tailer

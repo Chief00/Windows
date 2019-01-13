@@ -15,27 +15,16 @@ Write-Host "
 "
 }
 
-function choiceLoop ($High, $choice, $subChoice){
-	while (($choice -lt 0) -or ($choice -gt $High)){
-        if ($choice -eq "?"){
-            choiceHelp $choiceArray $choiceArrayDesc
-        }
-        if ($choice -eq "Search"){
-            if ($subChoice -eq "?"){
-                choiceHelp $searchSubChoiceArray $searchSubChoiceArrayDesc
-            }
-        }
-    return $choice
-    }
-}
-
 function choiceExceptions ($choice, $subChoice) {
+    if (($choice -eq "b") -or ($subChoice -eq "b")) {
+        break
+    }
+    if (($choice -eq "") -or ($subChoice -eq "")) {
+        continue
+    }
     if ($choice -eq "?") {
         choiceHelp $choiceArray $choiceArrayDesc
         continue
-    }
-    if ($choice -eq "b") {
-        break
     }
     if ($choice -eq "Search") {
         if ($subChoice -eq "?") {
@@ -82,21 +71,22 @@ function choiceHelp ($Array, $ArrayDesc){
         Write-Host "   " $ArrayDesc[$i]
         Write-Host `n
     }
-    Read-Host "Press ENTER to return "
+    Write-Host "[b] Back" `n
+    Read-Host "Press any key to return "
 }
 
 
 function logChoice ($choice){
 
-    if ($choice -eq "Since App Opened")  {
+    if ($choice -eq "App Opened") {
         get-content riskview-cs.log -Wait -Tail ((select-string riskview-cs.log -Pattern ":" | select-object -ExpandProperty 'LineNumber' -Last 1) - (select-string riskview-cs.log -Pattern "main info" | select-object -ExpandProperty 'LineNumber' -Last 1)+1)
     }
 
-    if ($choice -eq "Since Last Gather")  {
+    if ($choice -eq "Last Gather") {
         get-content riskview-cs.log -wait -Tail ((select-string riskview-cs.log -Pattern ":" | select-object -ExpandProperty 'LineNumber' -Last 1)-(select-string riskview-cs.log -Pattern "Requesting project details" | select-object -ExpandProperty 'LineNumber' -Last 1)+1)
     }
 
-    if ($choice -eq "Never")   {
+    if ($choice -eq "Never") {
         get-content riskview-cs.log -wait -Tail 0
     }
 
@@ -104,26 +94,22 @@ function logChoice ($choice){
         get-content riskview-cs.log -wait
     }
 
-    if ($choice -eq "Search"){
+    if ($choice -eq "Search") {
         $subChoice = ""
-        while (($subChoice -lt 0) -or ($subChoice -gt $searchSubChoiceArray.length)){
+        while (($subChoice -lt 0) -or ($subChoice -gt $searchSubChoiceArray.length)) {
             $subChoice = searchSubChoice
-            if ($subChoice -eq "?"){
-                choiceHelp $searchSubChoiceArray $searchSubChoiceArrayDesc
-            }elseif (($subChoice -lt 0) -or ($subChoice -gt $searchSubChoiceArray.length)){
-                continue
-            }
+            choiceExceptions $choice $subChoice
             $subChoice = logSearchChoice $searchSubChoiceArray[$subChoice]
         }
         $choice = ""
     }
 
 
-    if ($choice -eq "Ram Usage"){
+    if ($choice -eq "Ram Usage") {
         get-content riskview-cs.log -wait -Tail ((select-string riskview-cs.log -Pattern ":" | select-object -ExpandProperty 'LineNumber' -Last 1)-(select-string riskview-cs.log -Pattern "Requesting project details" | select-object -ExpandProperty 'LineNumber' -Last 1)+1) | where {$_.contains("Current Free Memory")}
     }
 
-    if ($choice -eq "Current File"){
+    if ($choice -eq "Current File") {
         get-content riskview-cs.log -wait -Tail ((select-string riskview-cs.log -Pattern ":" | select-object -ExpandProperty 'LineNumber' -Last 1)-(select-string riskview-cs.log -Pattern "Requesting project details" | select-object -ExpandProperty 'LineNumber' -Last 1)+1) | where {$_.contains("[FileGathererToItems] Processing file") -Or $_.contains("[TikaFileGathererBase] File Excluded")}
     }
     return $choice
@@ -131,36 +117,38 @@ function logChoice ($choice){
 
 function logSearchChoice ($subChoice) {
 
-    if ($subChoice -eq "Simple"){
+    if ($subChoice -eq "Simple") {
 
         $userString = Read-Host "What do you want to search? "
+        if (($userString -eq "" -or "b")) {return ""}
         select-string riskview-cs.log -Pattern $userString -Context 0, 2
 
         $ynLoop = Read-Host "Do you want to search something else? (y or n)"
         if ($ynLoop -eq "y") {
-            $ynLoop = ""
-        }else {$ynLoop = 0}
+            return ""
+        }else {break}
 
     }
-    if ($subChoice -eq "Extra"){
+    if ($subChoice -eq "Extra") {
 
-            $userString = Read-Host "What do you want to search? "
-            $extraLines = Read-Host "How many extra lines do you want to print? "
-            select-string riskview-cs.log -Pattern $userString -Context 0, $extraLines
+        $userString = Read-Host "What do you want to search? "
+        if (($userString -eq "" -or "b")) {return ""}
+        $extraLines = Read-Host "How many extra lines do you want to print? "
+        if (($extraLines -eq "" -or "b")) {return ""}
+        select-string riskview-cs.log -Pattern $userString -Context 0, $extraLines
 
-            $ynLoop = Read-Host "Do you want to search something else? (y or n)"
-            if ($ynLoop -eq "y") {
-                $ynLoop = ""
-            }else {$ynLoop = 0}
+        $ynLoop = Read-Host "Do you want to search something else? (y or n)"
+        if ($ynLoop -eq "y") {
+            return ""
+        }else {break}
     }
-    if ($subChoice -eq "Tailing"){
+    if ($subChoice -eq "Tailing") {
         $ynLoop = 0
         ""
         "This is case sensitive"
         $userString = Read-Host "What do you want to search? "
         get-content riskview-cs.log -wait -Tail ((select-string riskview-cs.log -Pattern ":" | select-object -ExpandProperty 'LineNumber' -Last 1)-(select-string riskview-cs.log -Pattern "Requesting project details" | select-object -ExpandProperty 'LineNumber' -Last 1)+1) | where {$_.contains($userString)}
     }
-    return $ynLoop
 }
 
 
@@ -185,22 +173,16 @@ $searchSubChoiceArrayDesc=
 # This is the user main input loop
 $userChoice = ""
 
-while (($userChoice -lt 0) -or ($userChoice -gt $choiceArray.length-1)){
+while ($choiceArray -NotContains $userChoice) {
     $userChoice = ""
-    $userChoice = $(mainChoice)
-    if ($userChoice -eq "?"){
-        choiceHelp $choiceArray $choiceArrayDesc
-    }elseif (($userChoice -lt 0) -or ($userChoice -gt $choiceArray.length-1)){
-        continue
-    }
+    $userChoice = mainChoice
+    choiceExceptions $userChoice $subChoice
     $userChoice = logChoice $choiceArray[$userChoice]
 }
 
 
 
 # Add cool graphics
-# Add choice to describe the choices
 # Look at other logs
 # AND searching
-# Quit feature
 # Integers only, and yn only
