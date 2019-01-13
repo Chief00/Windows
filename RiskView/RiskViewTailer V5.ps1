@@ -99,7 +99,7 @@ function logChoice ($choice){
         while (($subChoice -lt 0) -or ($subChoice -gt $searchSubChoiceArray.length)) {
             $subChoice = searchSubChoice
             choiceExceptions $choice $subChoice
-            $subChoice = logSearchChoice $searchSubChoiceArray[$subChoice]
+            logSearchChoice $searchSubChoiceArray[$subChoice]
         }
         $choice = ""
     }
@@ -120,33 +120,25 @@ function logSearchChoice ($subChoice) {
     if ($subChoice -eq "Simple") {
 
         $userString = Read-Host "What do you want to search? "
-        if (($userString -eq "" -or "b")) {return ""}
-        select-string riskview-cs.log -Pattern $userString -Context 0, 2
-
-        $ynLoop = Read-Host "Do you want to search something else? (y or n)"
-        if ($ynLoop -eq "y") {
-            return ""
-        }else {break}
-
+        if (($userString -eq "b") -or ($userString -eq "")) {return ""}
+        select-string riskview-cs.log -Pattern $userString
+        Read-Host "`nPress anything to return"
     }
     if ($subChoice -eq "Extra") {
 
         $userString = Read-Host "What do you want to search? "
-        if (($userString -eq "" -or "b")) {return ""}
+        if (($userString -eq "b") -or ($userString -eq "")) {return ""}
         $extraLines = Read-Host "How many extra lines do you want to print? "
-        if (($extraLines -eq "" -or "b")) {return ""}
+        if (($extraLines -eq "b") -or ($userString -eq "")) {return ""}
         select-string riskview-cs.log -Pattern $userString -Context 0, $extraLines
-
-        $ynLoop = Read-Host "Do you want to search something else? (y or n)"
-        if ($ynLoop -eq "y") {
-            return ""
-        }else {break}
+        Read-Host "`nPress anything to return"
     }
     if ($subChoice -eq "Tailing") {
         $ynLoop = 0
         ""
         "This is case sensitive"
         $userString = Read-Host "What do you want to search? "
+        if (($userString -eq "b") -or ($userString -eq "")) {return ""}
         get-content riskview-cs.log -wait -Tail ((select-string riskview-cs.log -Pattern ":" | select-object -ExpandProperty 'LineNumber' -Last 1)-(select-string riskview-cs.log -Pattern "Requesting project details" | select-object -ExpandProperty 'LineNumber' -Last 1)+1) | where {$_.contains($userString)}
     }
 }
@@ -177,7 +169,7 @@ while ($choiceArray -NotContains $userChoice) {
     $userChoice = ""
     $userChoice = mainChoice
     choiceExceptions $userChoice $subChoice
-    $userChoice = logChoice $choiceArray[$userChoice]
+    logChoice $choiceArray[$userChoice]
 }
 
 
