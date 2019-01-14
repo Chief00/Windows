@@ -171,10 +171,3 @@ while ($choiceArray -NotContains $userChoice) {
     choiceExceptions $userChoice $subChoice
     logChoice $choiceArray[$userChoice]
 }
-
-
-
-# Add cool graphics
-# Look at other logs
-# AND searching
-# Integers only, and yn only
