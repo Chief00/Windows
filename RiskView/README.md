@@ -19,3 +19,5 @@ Change the while loops to userChoice in choiceArray, respectively.
 Parse the log and update stat variables (Average RAM, File number, Current File, Error Count)
 * ###### Error Debugging
 Show what errors have occured in the log, inlcuding the error "Problem Opening File"
+* ###### All Inclusive File - RiskView Helper
+This would have all the scripts so far, Tailer, Upgrader, Nogui. With a load of extra functions - opening any log file, removing the last scan info, uninstalling
