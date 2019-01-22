@@ -17,3 +17,5 @@ Using windows explorer to get the details of a file, change the location to it a
 Change the while loops to userChoice in choiceArray, respectively.
 * ###### Display stats
 Parse the log and update stat variables (Average RAM, File number, Current File, Error Count)
+* ###### Error Debugging
+Show what errors have occured in the log, inlcuding the error "Problem Opening File"
