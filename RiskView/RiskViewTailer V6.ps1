@@ -168,8 +168,8 @@ function logRunAPPChoice ($subChoice) {
 
         $serverLink = Read-Host "What is the server link "
         $scanLocation = Read-Host "Where is the location you want to scan "
-        [regex]$regex = "\w{8}-(\w{4}-){3}\w{12}"
-        $GUID = $regex.Matches($serverLink) | foreach-object {$_.value}
+        [regex]$regexGUID = "\w{8}-(\w{4}-){3}\w{12}"
+        $GUID = $regexGUID.Matches($serverLink) | foreach-object {$_.value}
         if (Test-Path C:\Users\$([Environment]::UserName)\AppData\Local\RiskView-CS\Resources\$GUID) {
             $removeLastScan = Read-Host "Do you want to remove the last scan data (y/n)"
             if ($removeLastScan -eq "y") {
@@ -186,7 +186,8 @@ function logRunAPPChoice ($subChoice) {
 
 $choiceArray = "Run App","App Opened", "Last Gather", "Never", "All", "Search", "RAM Usage", "Current File"
 $searchSubChoiceArray = "Simple", "Extra", "Tailing"
-$runAppSubChoiceArray = "Gui","NoGui"
+$runAppSubChoiceArray = "Gui", "NoGui"
+
 
 $choiceArrayDesc =
 "This will run the app, and reset this screen for tailing options",
@@ -196,7 +197,8 @@ $choiceArrayDesc =
 "This will display the whole log and then tail it.",
 "You can search the log for phrases.",
 "This will tail the log for the RAM usage.",
-"This will tail the log only displaying the current file being processed and any excluded files."
+"This will tail the log only displaying the current file being processed and any excluded files.",
+"Change some parameters of the app"
 
 $searchSubChoiceArrayDesc =
 "This will do a simple search in the log for a phrase.",
@@ -204,8 +206,8 @@ $searchSubChoiceArrayDesc =
 "This will search the log for the occurance of the phrase and display them all. `n    Then tail the log only displaying lines that contain the phrase.`n    This is CaSe SeNsItIvE!!"
 
 $runAppSubChoiceArrayDesc =
-"This will open the app with a General User Interface",
-"This will run the app without a GUI and will run the commands via command line. `n    This will provide a simple User Interface to make it easier `n    Removing the last scan data will allow you to run a full scan as by defualt this `n     is set to scan files since the last scan was run"
+"This will open the app with a General User Interface.",
+"This will run the app without a GUI and will run the commands via command line. `n    This will provide a simple User Interface to make it easier. `n    Removing the last scan data will allow you to run a full scan as by defualt this `n     is set to scan files since the last scan was run."
 
 # This is the user main input loop
 $userChoice = ""
