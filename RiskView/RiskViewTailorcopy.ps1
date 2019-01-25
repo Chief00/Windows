@@ -1,10 +1,4 @@
 
-
-# To add a new option, add it to the choiceArray or relevent subchoicearray
-# Then add the code for the option in the relevent logchoice
-# Then add the description to the relevent choiceArrayDesc
-# Add to choice exceptions
-
 # Run as admin script
 If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
     $arguments = "& '" + $myinvocation.mycommand.definition + "'"
@@ -15,7 +9,7 @@ If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 $logFile = "C:\Users\$([Environment]::UserName)\AppData\Local\Temp\riskview-cs.log"
 $appFolderLocation = "C:\Program Files\RiskView-CS"
 $appData = "C:\Users\$([Environment]::UserName)\AppData\Local\RiskView-CS"
-$configFile = "$appData\app\RiskView-CS.cfg"
+$configFile = "$appFolderLocation\app\RiskView-CS.cfg"
 
 function printLogo {
 Write-Host "
@@ -38,68 +32,107 @@ function choiceExceptions ($choice, $subChoice = "FALSE", $subSubChoice = "FALSE
         continue
     }
     if ($choice -eq "?") {
-        choiceHelp $choiceArray $choiceArrayDesc
+        choiceHelp "Main"
         continue
     }
     if ($choice -eq "Search") {
         if ($subChoice -eq "?") {
-            choiceHelp $searchSubChoiceArray $searchSubChoiceArrayDesc
+            choiceHelp $choice
             continue
         }
     }
     if ($choice -eq "Run App") {
         if ($subChoice -eq "?") {
-            choiceHelp $runAppSubChoiceArray $runAppSubChoiceArrayDesc
+            choiceHelp $choice
         }
     }
     if ($choice -eq "Options") {
         if ($subChoice -eq "?") {
-            choiceHelp $optionsSubChoiceArray $optionsSubChoiceArrayDesc
+            choiceHelp $choice
         }
     }
 }
 
-function userChoicesList ($title, $choiceArray) {
+function userChoicesList ($title, $type) {
 
     cls
     printLogo
 
-    Write-Host "Logged in as: " $([Environment]::UserName)
+    Write-Host "Logged in as: " $([Environment]::UserName) `n
+    Write-Host $type -Foregroundcolor Green
     Write-Host `n$title `n
-    for ($i = 0; $i -lt $choiceArray.length; $i++) {
-        Write-Host "[$i]" $choiceArray[$i]
+    $i = 0
+    $choiceArrayDesc[$type].GetEnumerator() | ForEach-Object{
+        Write-Host "[$i]" $_.key
+        $i += 1
     }
     Write-Host "[?] Help"
     $choice = Read-Host "`n`nWhat do you choose? "
-    return $choice
+    if (0..$choiceArrayDesc[$type].Count -Contains $choice){
+        $output = $ChoiceArrayDesc[$type].keys | select -Index $choice
+        return $output
+    } else {
+        return $choice
+    }
+
 }
 
-function choiceHelp ($Array, $ArrayDesc){
+function choiceHelp ($type){
 
     cls
     printLogo
-    for ($i = 0; $i -lt $Array.length; $i++) {
-        Write-Host
-        Write-Host "[$i]" $Array[$i]
-        Write-Host "   " $ArrayDesc[$i]
+    $i = 1
+    $choiceArrayDesc[$type].GetEnumerator() | ForEach-Object{
+        Write-Host "[$i]" $_.key
+        Write-Host "   " $_.value
         Write-Host `n
+        $i += 1
     }
     Write-Host "[b] Back" `n
     Read-Host "Press any key to return "
 }
 
 
-function logChoice ($choice) {
+function mainChoices ($choice) {
 
     if ($choice -eq "Run App") {
         $subChoice = ""
         while ($subChoice -ne "b") {
-            $subChoice = userChoicesList "How would you like to run the app: " $runAppSubChoiceArray
+            $subChoice = userChoicesList "How would you like to run the app: " $choice
             choiceExceptions $choice $subChoice
-            logRunAPPChoice $runAppSubChoiceArray[$subChoice]
+            runAppChoices $subChoice
         }
-        $choice = ""
     }
+
+    if ($choice -eq "Tailer") {
+        while ($subchoice -ne "b") {
+            $subChoice = userChoicesList "How would you like to tail: " $choice
+            choiceExceptions $choice $subChoice
+            tailerChoices $subChoice
+        }
+    }
+
+    if ($choice -eq "Search") {
+        $subChoice = ""
+        while ($subChoice -ne "b") {
+            $subChoice = userChoicesList "How do you want to search: " $choice
+            choiceExceptions $choice $subChoice
+            searchChoices $subChoice
+        }
+    }
+
+
+    if ($choice -eq "Options") {
+        $subChoice = ""
+        while ($subChoice -ne "b") {
+            $subChoice = userChoicesList "What options do you want to change:  " $choice
+            choiceExceptions $choice $subChoice
+            optionsChoices $subChoice
+        }
+    }
+}
+
+function tailerChoices ($choice) {
 
     if ($choice -eq "App Opened") {
         get-content $logFile -Wait -Tail ((select-string $logFile -Pattern ":" | select-object -ExpandProperty 'LineNumber' -Last 1) - (select-string $logFile -Pattern "RiskView CS Version" | select-object -ExpandProperty 'LineNumber' -Last 1)+1)
@@ -117,17 +150,6 @@ function logChoice ($choice) {
         get-content $logFile -wait
     }
 
-    if ($choice -eq "Search") {
-        $subChoice = ""
-        while ($subChoice -ne "b") {
-            $subChoice = userChoicesList "How do you want to search: " $searchSubChoiceArray
-            choiceExceptions $choice $subChoice
-            logSearchChoice $searchSubChoiceArray[$subChoice]
-        }
-        $choice = ""
-    }
-
-
     if ($choice -eq "Ram Usage") {
         get-content $logFile -wait -Tail ((select-string $logFile -Pattern ":" | select-object -ExpandProperty 'LineNumber' -Last 1)-(select-string $logFile -Pattern "Requesting project details" | select-object -ExpandProperty 'LineNumber' -Last 1)+1) | where {$_.contains("Current Free Memory")}
     }
@@ -135,29 +157,18 @@ function logChoice ($choice) {
     if ($choice -eq "Current File") {
         get-content $logFile -wait -Tail ((select-string $logFile -Pattern ":" | select-object -ExpandProperty 'LineNumber' -Last 1)-(select-string $logFile -Pattern "Requesting project details" | select-object -ExpandProperty 'LineNumber' -Last 1)+1) | where {$_.contains("[FileGathererToItems] Processing file") -Or $_.contains("[TikaFileGathererBase] File Excluded")}
     }
-
-
-    if ($choice -eq "Options") {
-        $subChoice = ""
-        while ($subChoice -ne "b") {
-            $subChoice = userChoicesList "What options do you want to change:  " $optionsSubChoiceArray
-            choiceExceptions $choice $subChoice
-            logOptionsChoice $optionsSubChoiceArray[$subChoice]
-        }
-    }
-    return $choice
 }
 
-function logSearchChoice ($subChoice) {
+function searchChoices ($choice) {
 
-    if ($subChoice -eq "Simple") {
+    if ($choice -eq "Simple") {
 
         $userString = Read-Host "What do you want to search? "
         if (($userString -eq "b") -or ($userString -eq "")) {return ""}
         select-string $logFile -Pattern $userString
         Read-Host "`nPress anything to return"
     }
-    if ($subChoice -eq "Extra") {
+    if ($choice -eq "Extra") {
 
         $userString = Read-Host "What do you want to search? "
         if (($userString -eq "b") -or ($userString -eq "")) {return ""}
@@ -166,7 +177,7 @@ function logSearchChoice ($subChoice) {
         select-string $logFile -Pattern $userString -Context 0, $extraLines
         Read-Host "`nPress anything to return"
     }
-    if ($subChoice -eq "Tailing") {
+    if ($choice -eq "Tailing") {
         ""
         "This is case sensitive"
         $userString = Read-Host "What do you want to search? "
@@ -175,13 +186,13 @@ function logSearchChoice ($subChoice) {
     }
 }
 
-function logRunAPPChoice ($subChoice) {
+function runAppChoices ($choice) {
 
-    if ($subChoice -eq "Gui") {
+    if ($choice -eq "Gui") {
         &$appFolderLocation\RiskView-CS.exe
     }
 
-    if ($subChoice -eq "NoGui") {
+    if ($choice -eq "NoGui") {
 
         $serverLink = Read-Host "What is the server link "
         $scanLocation = Read-Host "Where is the location you want to scan "
@@ -197,30 +208,30 @@ function logRunAPPChoice ($subChoice) {
     }
 }
 
-function logOptionsChoice ($subChoice) {
+function optionsChoices ($choice) {
 
 
     $configFileContent = Get-Content $configFile
-    if ($subChoice -eq "Current RAM") {
+    if ($choice -eq "Current RAM") {
         [regex]$regexRAM = "\d+m"
         Write-Host "`nCurrent RAM is: " $regexRAM.Matches($configFileContent) | foreach-object {$_.value}
         Read-Host "`nPress any key to continue"
     }
 
-    if ($subChoice -eq "Change RAM Allowance") {
+    if ($choice -eq "Change RAM Allowance") {
         [regex]$regexRAM = "-Xmx=\d+"
         $currentRAM = $regexRAM.Matches($configFileContent) | foreach-object {$_.value}
         $newRAM = Read-Host "How much RAM do you want to allow (MB) "
         ($configFileContent).Replace($currentRAM +'m','-Xmx='+ $newRAM +'m') | Out-File $configFile
     }
 
-    if ($subChoice -eq "Reset RAM") {
+    if ($choice -eq "Reset RAM") {
         [regex]$regexRAM = "-Xmx=\d+"
         $currentRAM = $regexRAM.Matches($configFileContent) | foreach-object {$_.value}
         ($configFileContent).Replace($currentRAM +'m','-Xmx=3048m') | Out-File $configFile
     }
 
-    if ($subChoice -eq "Uninstall") {
+    if ($choice -eq "Uninstall") {
         $app = Get-WmiObject -Class Win32_Product | Where-Object {
         $_.Name -match "RiskView-CS"
         }
@@ -229,7 +240,7 @@ function logOptionsChoice ($subChoice) {
         rm $appData
     }
 
-    if ($subChoice -eq "Upgrade") {
+    if ($choice -eq "Upgrade") {
         $app = Get-WmiObject -Class Win32_Product | Where-Object {
         $_.Name -match "RiskView-CS"
         }
@@ -238,46 +249,49 @@ function logOptionsChoice ($subChoice) {
     }
 }
 
+$ChoiceArrayDesc = [ordered]@{
+    "Main Menu" = [ordered]@{
+        "Run App" = "This will run the app.";
+        "Tailer" = "This will tail the logs.";
+        "Search" = "This will search the log file.";
+        "Options" = "Configurable options for the this script adn the app."
+    };
 
+    "Run App" = [ordered]@{
+        "GUI" = "This will open the app with a General User Interface.";
+        "NoGui" = "This will run the app without a GUI and will run the commands via command line. `n    This will provide a simple User Interface to make it easier. `n    Removing the last scan data will allow you to run a full scan as by defualt this `n     is set to scan files since the last scan was run."
+    };
 
-$choiceArray = "Run App","App Opened", "Last Gather", "Never", "All", "Search", "RAM Usage", "Current File", "Options"
-$searchSubChoiceArray = "Simple", "Extra", "Tailing"
-$runAppSubChoiceArray = "Gui", "NoGui"
-$optionsSubChoiceArray = "Current RAM", "Change RAM Allowance", "Reset RAM", "Uninstall", "Upgrade"
+    "Tailer" = [ordered]@{
+        "App Opened" = "This will display the log since the app was opened and then tail it.";
+        "Last Gather" = "This will display the log since the last gather was run and then tail it.";
+        "Never" = "This will just tail the log from the last line, not showing the log previous to the last line.";
+        "All" = "This will display the whole log and then tail it.";
+        "RAM Usage" = "This will tail the log for the RAM usage.";
+        "Current File" = "This will tail the log only displaying the current file being processed and any excluded files."
+    };
 
-$choiceArrayDesc =
-"This will run the app, and reset this screen for tailing options",
-"This will display the log since the app was opened and then tail it.",
-"This will display the log since the last gather was run and then tail it.",
-"This will just tail the log from the last line, not showing the log previous to the last line.",
-"This will display the whole log and then tail it.",
-"You can search the log for phrases.",
-"This will tail the log for the RAM usage.",
-"This will tail the log only displaying the current file being processed and any excluded files.",
-"Change some parameters of the app"
+    "Search" = [ordered]@{
+        "Simple" = "This will do a simple search in the log for a phrase.";
+        "Extra" = "This will do a search and display n extra lines after the matched phrases line.";
+        "Tailing" = "This will search the log for the occurance of the phrase and display them all. `n    Then tail the log only displaying lines that contain the phrase.`n    This is CaSe SeNsItIvE!!"
+    };
 
-$searchSubChoiceArrayDesc =
-"This will do a simple search in the log for a phrase.",
-"This will do a search and display n extra lines after the matched phrases line.",
-"This will search the log for the occurance of the phrase and display them all. `n    Then tail the log only displaying lines that contain the phrase.`n    This is CaSe SeNsItIvE!!"
-
-$runAppSubChoiceArrayDesc =
-"This will open the app with a General User Interface.",
-"This will run the app without a GUI and will run the commands via command line. `n    This will provide a simple User Interface to make it easier. `n    Removing the last scan data will allow you to run a full scan as by defualt this `n     is set to scan files since the last scan was run."
-
-$optionsSubChoiceArrayDesc =
-"This will display the current amount of RAM the app has access to.",
-"This will change the amount of ram the app has access to.",
-"This willl reset the ram of the app back to its default (3048 MB).",
-"This will completely Uninstall the app removing all files and folders.",
-"Upgrade to a specified version."
+    "Options" = [ordered]@{
+        "Current RAM" = "This will display the current amount of RAM the app has access to.";
+        "Change RAM Allowance" = "This will change the amount of ram the app has access to.";
+        "Reset RAM" = "This willl reset the ram of the app back to its default (3048 MB).";
+        "Uninstall" = "This will completely Uninstall the app removing all files and folders.";
+        "Upgrade" = "Upgrade to a specified version."
+    }
+}
 
 # This is the user main input loop
 $userChoice = ""
 
 while ($userChoice -ne "b") {
     $userChoice = ""
-    $userChoice = userChoicesList "What do you want to tail: " $choiceArray
+    $userChoice = userChoicesList "What would you like to do: " "Main Menu"
     choiceExceptions $userChoice
-    logChoice $choiceArray[$userChoice]
+    mainChoices $userChoice
 }
