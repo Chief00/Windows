@@ -32,7 +32,7 @@ function choiceExceptions ($choice, $subChoice = "FALSE", $subSubChoice = "FALSE
         continue
     }
     if ($choice -eq "?") {
-        choiceHelp "Main"
+        choiceHelp "Main Menu"
         continue
     }
     if ($choice -eq "Search") {
@@ -190,6 +190,7 @@ function runAppChoices ($choice) {
 
     if ($choice -eq "Gui") {
         &$appFolderLocation\RiskView-CS.exe
+        Break
     }
 
     if ($choice -eq "NoGui") {
