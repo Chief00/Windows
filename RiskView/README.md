@@ -3,8 +3,9 @@
 
 * RiskView Tailer
 * RiskView Upgrader
+* RiskView Tailor
 
-# RiskView Tailer
+# RiskView Tailor
 
 ## Future Updates
 
@@ -13,11 +14,10 @@ Based of the length of the longest string, and the number of lines printed, enca
 * ###### Look at other logs
 Using windows explorer to get the details of a file, change the location to it and run the scans on that filename.
 * ###### AND searching
-* ###### Integers only, and yn only
-Change the while loops to userChoice in choiceArray, respectively.
 * ###### Display stats
 Parse the log and update stat variables (Average RAM, File number, Current File, Error Count)
 * ###### Error Debugging
 Show what errors have occured in the log, inlcuding the error "Problem Opening File"
-* ###### All Inclusive File - RiskView Helper
-This would have all the scripts so far, Tailer, Upgrader, Nogui. With a load of extra functions - opening any log file, removing the last scan info, uninstalling
+* ###### Detect when default files arent located
+notification that the default files dont exist
+* ###### Dont start in admin mode - option to re run in admin. Or that needs it runs in admin
