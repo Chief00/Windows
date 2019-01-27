@@ -1,15 +1,10 @@
 
-# Run as admin script
-If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
-    $arguments = "& '" + $myinvocation.mycommand.definition + "'"
-    Start-Process powershell -Verb runAs -ArgumentList $arguments
-    Break
-}
 
 $logFile = "C:\Users\$([Environment]::UserName)\AppData\Local\Temp\riskview-cs.log"
 $appFolderLocation = "C:\Program Files\RiskView-CS"
 $appData = "C:\Users\$([Environment]::UserName)\AppData\Local\RiskView-CS"
 $configFile = "$appFolderLocation\app\RiskView-CS.cfg"
+$filename = "RiskViewTailorcopy.ps1"
 
 function printLogo {
 Write-Host "
@@ -58,12 +53,24 @@ function userChoicesList ($title, $type) {
     cls
     printLogo
 
-    Write-Host "Logged in as: " $([Environment]::UserName) `n
-    Write-Host $type -Foregroundcolor Green
+    Write-Host "Logged in as: " $([Environment]::UserName)
+    if ($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+        Write-Host -NoNewline "Access Level: "
+        Write-Host "Administrator" -Foregroundcolor "Yellow"
+    } else {
+        Write-Host "Access Level: Non-Administrator"
+    }
+    Write-Host `n$type -Foregroundcolor "Green"
     Write-Host `n$title `n
+
     $i = 0
     $choiceArrayDesc[$type].GetEnumerator() | ForEach-Object{
-        Write-Host "[$i]" $_.key
+        if (($_.value -Match "Requires Administrator Access") -AND (-Not($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)))) {
+            $accessColour = "Red"
+        } else {
+            $accessColour = "White"
+        }
+        Write-Host "[$i]" $_.key -Foregroundcolor $accessColour
         $i += 1
     }
     Write-Host "[?] Help"
@@ -77,19 +84,28 @@ function userChoicesList ($title, $type) {
 
 }
 
-function choiceHelp ($type){
+function choiceHelp ($type) {
 
     cls
     printLogo
     $i = 1
     $choiceArrayDesc[$type].GetEnumerator() | ForEach-Object{
-        Write-Host "[$i]" $_.key
+        if (($_.value -Match "Requires Administrator Access") -AND (-Not($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)))) {
+            $accessColour = "Red"
+        } else {
+            $accessColour = "White"
+        }
+        Write-Host "[$i]" $_.key -Foregroundcolor $accessColour
         Write-Host "   " $_.value
         Write-Host `n
         $i += 1
     }
+
     Write-Host "[b] Back" `n
-    Read-Host "Press any key to return "
+    Write-Host -NoNewline "Anthing in "
+    Write-Host -NoNewline "red" -Foregroundcolor "Red"
+    Write-Host " you do not have the correct access to. Get Administrator Access.`n"
+    Read-Host "Press Enter to return "
 }
 
 
@@ -128,6 +144,19 @@ function mainChoices ($choice) {
             $subChoice = userChoicesList "What options do you want to change:  " $choice
             choiceExceptions $choice $subChoice
             optionsChoices $subChoice
+        }
+    }
+
+    if ($choice -eq "Administrator Access") {
+        if ($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+            printLogo
+            Write-Host "You already have Administrator access"
+            Read-Host `n"Press any button to continue"
+        } else {
+            $ScriptDir = Split-Path $script:MyInvocation.MyCommand.Path
+            $ScriptDir += "\$filename"
+            Start-Process powershell -Verb runAs -ArgumentList $ScriptDir
+            break
         }
     }
 }
@@ -211,12 +240,11 @@ function runAppChoices ($choice) {
 
 function optionsChoices ($choice) {
 
-
     $configFileContent = Get-Content $configFile
     if ($choice -eq "Current RAM") {
         [regex]$regexRAM = "\d+m"
         Write-Host "`nCurrent RAM is: " $regexRAM.Matches($configFileContent) | foreach-object {$_.value}
-        Read-Host "`nPress any key to continue"
+        Read-Host "`nPress Enter to continue"
     }
 
     if ($choice -eq "Change RAM Allowance") {
@@ -255,7 +283,8 @@ $ChoiceArrayDesc = [ordered]@{
         "Run App" = "This will run the app.";
         "Tailer" = "This will tail the logs.";
         "Search" = "This will search the log file.";
-        "Options" = "Configurable options for the this script adn the app."
+        "Options" = "Configurable options for the this script adn the app.";
+        "Administrator Access" = "Restarts the script with Administrator access"
     };
 
     "Run App" = [ordered]@{
@@ -280,16 +309,33 @@ $ChoiceArrayDesc = [ordered]@{
 
     "Options" = [ordered]@{
         "Current RAM" = "This will display the current amount of RAM the app has access to.";
-        "Change RAM Allowance" = "This will change the amount of ram the app has access to.";
-        "Reset RAM" = "This willl reset the ram of the app back to its default (3048 MB).";
-        "Uninstall" = "This will completely Uninstall the app removing all files and folders.";
-        "Upgrade" = "Upgrade to a specified version."
+        "Change RAM Allowance" = "This will change the amount of ram the app has access to.`n    Requires Administrator Access.";
+        "Reset RAM" = "This willl reset the ram of the app back to its default (3048 MB).`n    Requires Administrator Access.";
+        "Uninstall" = "This will completely Uninstall the app removing all files and folders.`n    Requires Administrator Access.";
+        "Upgrade" = "Upgrade to a specified version.`n    Requires Administrator Access."
     }
 }
 
-# This is the user main input loop
 $userChoice = ""
+$currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 
+function checkRiskViewFiles {
+
+    printLogo
+    if (-Not (Test-Path $appFolderLocation)) {
+        Write-Host "RiskView Program Files folder not found"
+    }
+
+    if (-Not (Test-Path $appData)) {
+        Write-Host "RiskView AppData folder not found"
+    }
+
+    Read-Host `n"Press anything to continue"
+}
+
+checkRiskViewFiles
+
+# This is the user main input loop
 while ($userChoice -ne "b") {
     $userChoice = ""
     $userChoice = userChoicesList "What would you like to do: " "Main Menu"

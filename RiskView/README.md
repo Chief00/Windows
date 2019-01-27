@@ -17,7 +17,8 @@ Using windows explorer to get the details of a file, change the location to it a
 * ###### Display stats
 Parse the log and update stat variables (Average RAM, File number, Current File, Error Count)
 * ###### Error Debugging
-Show what errors have occured in the log, inlcuding the error "Problem Opening File"
-* ###### Detect when default files arent located
-notification that the default files dont exist
-* ###### Dont start in admin mode - option to re run in admin. Or that needs it runs in admin
+Show what errors have occurred in the log, including the error "Problem Opening File"
+* ###### Function colour coding
+Functions that require admin access to be in red, when you have admin access turn them green? or normal colour?
+* ###### Non-admin function lockout
+Trying to run a function that needs admin access throws a access denied
