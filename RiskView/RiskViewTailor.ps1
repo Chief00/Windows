@@ -241,7 +241,7 @@ function searchChoices ($choice) {
 }
 
 function runAppChoices ($choice) {
-
+    
     if ($choice -eq "Gui") {
         &$appFolderLocation\RiskView-CS.exe
         Break
