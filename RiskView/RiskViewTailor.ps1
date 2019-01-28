@@ -1,11 +1,12 @@
 
-
+# These are the default file locations
 $logFile = "C:\Users\$([Environment]::UserName)\AppData\Local\Temp\riskview-cs.log"
 $appFolderLocation = "C:\Program Files\RiskView-CS"
 $appData = "C:\Users\$([Environment]::UserName)\AppData\Local\RiskView-CS"
 $configFile = "$appFolderLocation\app\RiskView-CS.cfg"
 $filename = "RiskViewTailor.ps1"
 
+# This prints the RiskView logo
 function printLogo {
 Write-Host "
            ___  _     __  _   ___
@@ -19,7 +20,9 @@ Write-Host "
 
 "}
 
+# This function contains the exceptions for the user input
 function choiceExceptions ($choice, $subChoice = "FALSE", $subSubChoice = "FALSE") {
+    # Only allows access to subchoices that require admin access
     if ($subChoice -ne "FALSE") {
             if (($ChoiceArrayDesc.$choice[$subChoice] -Match "Requires Administrator Access") -AND (-Not($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)))) {
                 cls
@@ -30,37 +33,53 @@ function choiceExceptions ($choice, $subChoice = "FALSE", $subSubChoice = "FALSE
                 continue
             }
     }
+    # Go back for b
     if (($choice -eq "b") -or ($subChoice -eq "b")) {
         break
     }
+    # Continue for enter
     if (($choice -eq "") -or ($subChoice -eq "")) {
         continue
     }
+    # Run help function for main menu
     if ($choice -eq "?") {
         choiceHelp "Main Menu"
         continue
     }
     if ($choice -eq "Search") {
+        # Runs help function for search
         if ($subChoice -eq "?") {
             choiceHelp $choice
             continue
         }
     }
     if ($choice -eq "Run App") {
+        # Runs help function for run app
         if ($subChoice -eq "?") {
             choiceHelp $choice
             continue
         }
     }
     if ($choice -eq "Options") {
+        # Runs help function for options
         if ($subChoice -eq "?") {
             choiceHelp $choice
             continue
         }
+        # Throws "error" for trying to run a function on a non existant filepath
+        if (($subChoice -eq "Current RAM") -or ($subChoice -eq "Change RAM Allowance") -or ($subChoice -eq "Reset RAM") -AND (-Not(Test-Path $configFile))) {
+            cls
+            printLogo
+            Write-Host "Config File Not Found" -Foregroundcolor "Red"
+            Start-Sleep -s 2
+            continue
+        }
         if ($subChoice -eq "Change RAM Allowance") {
+            # Backs out of changing ram when entering b
             if ($subSubChoice -eq "b") {
                 continue
             }
+            # Makes sure that if not b a number is entered
             if ($subSubChoice -ne "FALSE") {
                 $value = $subSubChoice -as [Double]
                 $ok = $value -ne $NULL
@@ -72,11 +91,12 @@ function choiceExceptions ($choice, $subChoice = "FALSE", $subSubChoice = "FALSE
     }
 }
 
+# This function displays the choices and gets the users input
 function userChoicesList ($title, $type) {
 
     cls
     printLogo
-
+    # Checks access level and displays it
     Write-Host "Logged in as: " $([Environment]::UserName)
     if ($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
         Write-Host -NoNewline "Access Level: "
@@ -86,7 +106,7 @@ function userChoicesList ($title, $type) {
     }
     Write-Host `n$type -Foregroundcolor "Green"
     Write-Host `n$title `n
-
+    # Displays options and if they you dont have admin display as red for ones you need access to run
     $i = 0
     $choiceArrayDesc[$type].GetEnumerator() | ForEach-Object{
         if (($_.value -Match "Requires Administrator Access") -AND (-Not($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)))) {
@@ -99,7 +119,8 @@ function userChoicesList ($title, $type) {
     }
     Write-Host "[?] Help"
     $choice = Read-Host "`n`nWhat do you choose? "
-    if (0..$choiceArrayDesc[$type].Count -Contains $choice){
+    # Returns the choice as its name (string)
+    if ((0..$choiceArrayDesc[$type].Count -Contains $choice) -AND ($choice -ne "")) {
         $output = $ChoiceArrayDesc[$type].keys | select -Index $choice
         return $output
     } else {
@@ -108,10 +129,12 @@ function userChoicesList ($title, $type) {
 
 }
 
+# This function displays the descriptions for the choices
 function choiceHelp ($type) {
 
     cls
     printLogo
+    # Checks the access level needed for the choice and displays it in appropriate colour
     $i = 1
     $choiceArrayDesc[$type].GetEnumerator() | ForEach-Object{
         if (($_.value -Match "Requires Administrator Access") -AND (-Not($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)))) {
@@ -132,7 +155,7 @@ function choiceHelp ($type) {
     Read-Host "Press Enter to return "
 }
 
-
+# This function is the main menu chocies
 function mainChoices ($choice) {
 
     if ($choice -eq "Run App") {
@@ -172,6 +195,7 @@ function mainChoices ($choice) {
     }
 
     if ($choice -eq "Administrator Access") {
+        # Elevates to Administrator
         if ($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
             cls
             printLogo
@@ -186,6 +210,7 @@ function mainChoices ($choice) {
     }
 }
 
+# This fucntion is the tailer options
 function tailerChoices ($choice) {
 
     if ($choice -eq "App Opened") {
@@ -213,6 +238,7 @@ function tailerChoices ($choice) {
     }
 }
 
+# This fucntion is the search options
 function searchChoices ($choice) {
 
     if ($choice -eq "Simple") {
@@ -240,15 +266,16 @@ function searchChoices ($choice) {
     }
 }
 
+# This fucntion is the options for running the app
 function runAppChoices ($choice) {
-    
+
     if ($choice -eq "Gui") {
         &$appFolderLocation\RiskView-CS.exe
         Break
     }
 
     if ($choice -eq "NoGui") {
-
+        # Gets the GUID for the project and locates that folder
         $serverLink = Read-Host "What is the server link "
         $scanLocation = Read-Host "Where is the location you want to scan "
         [regex]$regexGUID = "\w{8}-(\w{4}-){3}\w{12}"
@@ -263,18 +290,21 @@ function runAppChoices ($choice) {
     }
 }
 
+# This fucntion is the options options
 function optionsChoices ($choice) {
     $functionGroup = "Options"
     choiceExceptions $functionGroup $choice
 
-    $configFileContent = Get-Content $configFile
     if ($choice -eq "Current RAM") {
+        # Regex for the current RAM
+        $configFileContent = Get-Content $configFile
         [regex]$regexRAM = "\d+m"
         Write-Host "`nCurrent RAM is: " $regexRAM.Matches($configFileContent) | foreach-object {$_.value}
         Start-Sleep -s 2
     }
 
     if ($choice -eq "Change RAM Allowance") {
+        $configFileContent = Get-Content $configFile
         [regex]$regexRAM = "-Xmx=\d+"
         $currentRAM = $regexRAM.Matches($configFileContent) | foreach-object {$_.value}
         $newRAM = Read-Host "How much RAM do you want to allow (MB) "
@@ -283,6 +313,7 @@ function optionsChoices ($choice) {
     }
 
     if ($choice -eq "Reset RAM") {
+        $configFileContent = Get-Content $configFile
         [regex]$regexRAM = "-Xmx=\d+"
         $currentRAM = $regexRAM.Matches($configFileContent) | foreach-object {$_.value}
         ($configFileContent).Replace($currentRAM +'m','-Xmx=3048m') | Out-File $configFile
@@ -304,8 +335,74 @@ function optionsChoices ($choice) {
         $app.Uninstall()
         rm $appData\Resources
     }
+    if ($choice -eq "Change Log File") {
+        # $logFile = Select-File
+        write-Host "Coming Soon!"
+        Start-Sleep -s 2
+    }
 }
 
+function Select-File {
+    Add-Type -AssemblyName System.Windows.Forms
+    $FileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+        Multiselect = $false # Multiple files can be chosen
+    	Filter = 'Logs (*.log)|*.log' # Specified file types
+    }
+
+    [void]$FileBrowser.ShowDialog()
+
+    $FileBrowser.FileName;
+}
+
+function Select-Folder {
+    [Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") | Out-Null
+    [System.Windows.Forms.Application]::EnableVisualStyles()
+    $browse = New-Object System.Windows.Forms.FolderBrowserDialog
+    $browse.SelectedPath = "C:\"
+    $browse.ShowNewFolderButton = $false
+    $browse.Description = "Select a directory"
+
+    $loop = $true
+    while($loop)
+    {
+        if ($browse.ShowDialog() -eq "OK")
+        {
+        $loop = $false
+
+		#Insert your script here
+
+        } else
+        {
+            $res = [System.Windows.Forms.MessageBox]::Show("You clicked Cancel. Would you like to try again or exit?", "Select a location", [System.Windows.Forms.MessageBoxButtons]::RetryCancel)
+            if($res -eq "Cancel")
+            {
+                #Ends script
+                return
+            }
+        }
+    }
+    $browse.SelectedPath
+    $browse.Dispose()
+}
+
+# This function checks that the RiskView default files/folders are there
+function checkRiskViewFiles {
+
+    printLogo
+    if (-Not (Test-Path $appFolderLocation)) {
+        Write-Host "RiskView Program Files folder not found"
+    }
+
+    if (-Not (Test-Path $appData)) {
+        Write-Host "RiskView AppData folder not found"
+    }
+
+    if ((-Not (Test-Path $appFolderLocation)) -or (-Not (Test-Path $appData))) {
+        Read-Host `n"Press anything to continue"
+    }
+}
+
+# This is all the options and their descriptions
 $ChoiceArrayDesc = [ordered]@{
     "Main Menu" = [ordered]@{
         "Run App" = "This will run the app.";
@@ -336,6 +433,7 @@ $ChoiceArrayDesc = [ordered]@{
     };
 
     "Options" = [ordered]@{
+        "Change Log File" = "This will change the log for searching and tailing.`n    This will be forgotten when getting Administrator Acess";
         "Current RAM" = "This will display the current amount of RAM the app has access to.";
         "Change RAM Allowance" = "This will change the amount of ram the app has access to.`n    Requires Administrator Access.";
         "Reset RAM" = "This willl reset the ram of the app back to its default (3048 MB).`n    Requires Administrator Access.";
@@ -344,28 +442,15 @@ $ChoiceArrayDesc = [ordered]@{
     }
 }
 
+# Sets the userchoice to zero to start the loop
 $userChoice = ""
+# Gets the current Access Level
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 
-function checkRiskViewFiles {
-
-    printLogo
-    if (-Not (Test-Path $appFolderLocation)) {
-        Write-Host "RiskView Program Files folder not found"
-    }
-
-    if (-Not (Test-Path $appData)) {
-        Write-Host "RiskView AppData folder not found"
-    }
-
-    if ((-Not (Test-Path $appFolderLocation)) -or (-Not (Test-Path $appData))) {
-        Read-Host `n"Press anything to continue"
-    }
-}
-
+# Runs on startup
 checkRiskViewFiles
 
-# This is the user main input loop
+# This is the user main input loop, can only exit the loop with b
 while ($userChoice -ne "b") {
     $userChoice = ""
     $userChoice = userChoicesList "What would you like to do: " "Main Menu"

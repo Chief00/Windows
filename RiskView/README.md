@@ -18,3 +18,5 @@ Using windows explorer to get the details of a file, change the location to it a
 Parse the log and update stat variables (Average RAM, File number, Current File, Error Count)
 * ###### Error Debugging
 Show what errors have occurred in the log, including the error "Problem Opening File"
+* ###### Uninstall loading/processing output
+When Uninstalling or upgrading output "Processing" and "Done"
