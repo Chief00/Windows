@@ -10,7 +10,7 @@ if ($userLogFile -eq "") {
 if ($userAppFolderLocation -eq "") {
     $appFolderLocation = "C:\Program Files\RiskView-CS"
 } else {$appFolderLocation = $userAppFolderLocation}
-if ($suerAppData -eq "") {
+if ($userAppData -eq "") {
     $appData = "C:\Users\$([Environment]::UserName)\AppData\Local\RiskView-CS"
 } else {$appData = $userAppData}
 $configFile = "$appFolderLocation\app\RiskView-CS.cfg"
@@ -254,6 +254,7 @@ function searchChoices ($choice) {
 
     if ($choice -eq "Simple") {
 
+        Write-Host "Log located at: $logFile"
         $userString = Read-Host "What do you want to search? "
         if (($userString -eq "b") -or ($userString -eq "")) {return ""}
         select-string $logFile -Pattern $userString
@@ -261,6 +262,7 @@ function searchChoices ($choice) {
     }
     if ($choice -eq "Extra") {
 
+        Write-Host "Log located at: $logFile"
         $userString = Read-Host "What do you want to search? "
         if (($userString -eq "b") -or ($userString -eq "")) {return ""}
         $extraLines = Read-Host "How many extra lines do you want to print? "
@@ -359,7 +361,7 @@ function optionsChoices ($choice) {
         Start-Sleep -s 2
     }
     if ($choice -eq "Change Log File") {
-        $logFile = Select-File 'Logs (*.log)|*.log'
+        $script:logFile = Select-File 'Logs (*.log)|*.log'
         Write-Host "File Changed to: $logFile"
         Start-Sleep -s 2
     }
