@@ -1,10 +1,21 @@
 
-# These are the default file locations
-$logFile = "C:\Users\$([Environment]::UserName)\AppData\Local\Temp\riskview-cs.log"
-$appFolderLocation = "C:\Program Files\RiskView-CS"
-$appData = "C:\Users\$([Environment]::UserName)\AppData\Local\RiskView-CS"
+# These are the locations of the RiskView files which the user can specify, shouldnt have to.
+$userLogFile = ""
+$userAppFolderLocation = ""
+$userAppData = ""
+
+if ($userLogFile -eq "") {
+    $logFile = "C:\Users\$([Environment]::UserName)\AppData\Local\Temp\riskview-cs.log"
+} else {$logFile = $userLogFile}
+if ($userAppFolderLocation -eq "") {
+    $appFolderLocation = "C:\Program Files\RiskView-CS"
+} else {$appFolderLocation = $userAppFolderLocation}
+if ($suerAppData -eq "") {
+    $appData = "C:\Users\$([Environment]::UserName)\AppData\Local\RiskView-CS"
+} else {$appData = $userAppData}
 $configFile = "$appFolderLocation\app\RiskView-CS.cfg"
 $filename = "RiskViewTailor.ps1"
+
 
 # This prints the RiskView logo
 function printLogo {
@@ -317,6 +328,8 @@ function optionsChoices ($choice) {
         [regex]$regexRAM = "-Xmx=\d+"
         $currentRAM = $regexRAM.Matches($configFileContent) | foreach-object {$_.value}
         ($configFileContent).Replace($currentRAM +'m','-Xmx=3048m') | Out-File $configFile
+        Write-Host "RAM has been Reset"
+        Start-Sleep -s 2
     }
 
     if ($choice -eq "Uninstall") {
@@ -326,6 +339,8 @@ function optionsChoices ($choice) {
         $app.Uninstall()
         rm $appFolderLocation
         rm $appData
+        Write-Host "Done!"
+        Start-Sleep -s 2
     }
 
     if ($choice -eq "Upgrade") {
@@ -333,20 +348,28 @@ function optionsChoices ($choice) {
         $_.Name -match "RiskView-CS"
         }
         $app.Uninstall()
-        rm $appData\Resources
+        Write-Host "Uninstalled"
+        if (Test-Path "$appData\Resources") {
+            rm $appData\Resources
+            Write-Host "Removed Resources"
+        }
+        $latestVersionPath = Select-File 'MSI (*.msi)|*.msi'
+        &$latestVersionPath
+        Write-Host "Installed"
+        Start-Sleep -s 2
     }
     if ($choice -eq "Change Log File") {
-        # $logFile = Select-File
-        write-Host "Coming Soon!"
+        $logFile = Select-File 'Logs (*.log)|*.log'
+        Write-Host "File Changed to: $logFile"
         Start-Sleep -s 2
     }
 }
 
-function Select-File {
+function Select-File ($filter) {
     Add-Type -AssemblyName System.Windows.Forms
     $FileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{
         Multiselect = $false # Multiple files can be chosen
-    	Filter = 'Logs (*.log)|*.log' # Specified file types
+    	Filter = $filter # Specified file types
     }
 
     [void]$FileBrowser.ShowDialog()
