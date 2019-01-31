@@ -339,10 +339,9 @@ function optionsChoices ($choice) {
         $_.Name -match "RiskView-CS"
         }
         $app.Uninstall()
-        rm $appFolderLocation
         rm $appData
         Write-Host "Done!"
-        Start-Sleep -s 2
+        Read-Host "Press Enter to continue"
     }
 
     if ($choice -eq "Upgrade") {
@@ -352,16 +351,15 @@ function optionsChoices ($choice) {
         $app.Uninstall()
         Write-Host "Uninstalled"
         if (Test-Path "$appData\Resources") {
-            rm $appData\Resources
+            rm "$appData\Resources"
             Write-Host "Removed Resources"
         }
         $latestVersionPath = Select-File 'MSI (*.msi)|*.msi'
         &$latestVersionPath
-        Write-Host "Installed"
-        Start-Sleep -s 2
+        Read-Host "Press Enter to continue"
     }
     if ($choice -eq "Change Log File") {
-        $script:logFile = Select-File 'Logs (*.log)|*.log'
+        $script:logFile = Select-File 'All files (*.*)| *.*'
         Write-Host "File Changed to: $logFile"
         Start-Sleep -s 2
     }

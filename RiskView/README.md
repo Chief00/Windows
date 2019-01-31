@@ -20,3 +20,5 @@ Parse the log and update stat variables (Average RAM, File number, Current File,
 Show what errors have occurred in the log, including the error "Problem Opening File"
 * ###### Uninstall loading/processing output
 When Uninstalling or upgrading better output "Processing" and "Done"
+* ###### Check that all files are there
+Have a process in the app that checks all the files in the directory are correct
