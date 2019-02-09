@@ -365,7 +365,7 @@ function optionsChoices ($choice) {
         Start-Sleep -s 2
     }
 
-    if ($choice -eq "Check Files") {
+    if ($choice -eq "Check RiskView Files") {
         for ($i=1; $i -lt $checkLocations.Count; $i++) {
             if (-Not(Test-Path $checkLocations[$i])) {
                 Write-Host "File not found, path: "$checkLocations[$i]
@@ -377,6 +377,28 @@ function optionsChoices ($choice) {
         }
         Read-Host "Press Enter to continue"
     }
+
+    if ($choice -eq "Probe Permissions") {
+        $probePath = Select-Folder
+        $i = 0
+        $totNumFiles = (Get-ChildItem -Recurse -Directory -Path $probePath).FullName.Count
+        (Get-ChildItem -Recurse -Directory -Path $probePath).FullName | ForEach-Object {checkaccess $_; $i = $i+1; Write-Progress -Activity "Checking permissions" -Status "$([math]::Round($i/$totNumFiles*100))% Complete" -PercentComplete ($i/$totNumFiles*100)}
+        $yn = Read-Host "Do you want to output these to a file? (y/n) "
+        if ($yn -eq "y") {
+            $npFilename = Read-Host "What is the filename? "
+            $notPermissionLocations | Out-File ".\$npFilename.txt"
+        }
+    }
+}
+
+function checkaccess ($Folder) {
+    $script:notPermissionLocations = @()
+    $user = $([Environment]::UserName)
+    $permission = (Get-Acl $Folder).Access | ?{$_.IdentityReference -match $User} | Select IdentityReference,FileSystemRights
+    if (-Not($permission)) {
+        write-host "not permission $Folder"
+        $script:notPermissionLocations += $Folder
+        }
 }
 
 function Select-File ($filter) {
@@ -478,7 +500,8 @@ $ChoiceArrayDesc = [ordered]@{
         "Reset RAM" = "This will reset the ram of the app back to its default (3048 MB).`n    Requires Administrator Access.";
         "Uninstall" = "This will completely Uninstall the app removing all files and folders.`n    Requires Administrator Access.";
         "Upgrade" = "Upgrade to a specified version.`n    Requires Administrator Access.";
-        "Check Files" = "This will check that all the files have been installed."
+        "Check RiskView Files" = "This will check that all the files have been installed.";
+        "Probe Permissions" = "Checks the user has access to the scanned folder."
     }
 }
 
