@@ -146,7 +146,7 @@ function choiceHelp ($type) {
     cls
     printLogo
     # Checks the access level needed for the choice and displays it in appropriate colour
-    $i = 1
+    $i = 0
     $choiceArrayDesc[$type].GetEnumerator() | ForEach-Object{
         if (($_.value -Match "Requires Administrator Access") -AND (-Not($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)))) {
             $accessColour = "Red"
@@ -247,6 +247,31 @@ function tailerChoices ($choice) {
     if ($choice -eq "Current File") {
         get-content $logFile -wait -Tail ((select-string $logFile -Pattern ":" | select-object -ExpandProperty 'LineNumber' -Last 1)-(select-string $logFile -Pattern "Requesting project details" | select-object -ExpandProperty 'LineNumber' -Last 1)+1) | where {$_.contains("[FileGathererToItems] Processing file") -Or $_.contains("[TikaFileGathererBase] File Excluded")}
     }
+
+    if ($choice -eq "Thread Buffer") {
+
+        if (-Not (Test-Path $logFile)) {
+            Write-Host "Log file not found, select one"
+            Start-Sleep -s 2
+            $script:logFile = Select-File 'All files (*.*)| *.*'
+        }
+        $oldTotalLines = (select-string $logFile -Pattern "Requesting project details" | select-object -ExpandProperty 'LineNumber' -Last 1)
+        $bufferLoop = $True
+
+        while ($bufferLoop) {
+            $totalLines = (Get-Content $logFile | Measure-Object -line).Lines
+            if ($totalLines -gt $oldTotalLines) {
+                for ($i=$oldTotalLines; $i -lt $totalLines; $i++) {
+                    collectBuffer (Get-Content $logFile | Select-Object -Index ($i-1))
+
+                    if ($i -eq $totalLines) {
+                        $oldTotalLines = $totalLines
+                    }
+                }
+            }
+            Start-Sleep -s 0.5
+        }
+    }
 }
 
 # This fucntion is the search options
@@ -290,7 +315,7 @@ function runAppChoices ($choice) {
     if ($choice -eq "NoGui") {
         # Gets the GUID for the project and locates that folder
         $serverLink = Read-Host "What is the server link "
-        $scanLocation = Read-Host "Where is the location you want to scan "
+        $scanLocation = Select-Folder
         [regex]$regexGUID = "\w{8}-(\w{4}-){3}\w{12}"
         $GUID = $regexGUID.Matches($serverLink) | foreach-object {$_.value}
         if (Test-Path $appData\Resources\$GUID) {
@@ -299,7 +324,7 @@ function runAppChoices ($choice) {
                 rm $appData\Resources\$GUID\ScanInfo.json
             }
         }
-        &$appFolderLocation\RiskView-CS.exe nogui $serverLink $scanLocation
+        &$appFolderLocation\RiskView-CS.exe nogui $serverLink "file://$scanLocation"
     }
 }
 
@@ -379,26 +404,19 @@ function optionsChoices ($choice) {
     }
 
     if ($choice -eq "Probe Permissions") {
-        $probePath = Select-Folder
-        $i = 0
-        $totNumFiles = (Get-ChildItem -Recurse -Directory -Path $probePath).FullName.Count
-        (Get-ChildItem -Recurse -Directory -Path $probePath).FullName | ForEach-Object {checkaccess $_; $i = $i+1; Write-Progress -Activity "Checking permissions" -Status "$([math]::Round($i/$totNumFiles*100))% Complete" -PercentComplete ($i/$totNumFiles*100)}
-        $yn = Read-Host "Do you want to output these to a file? (y/n) "
-        if ($yn -eq "y") {
-            $npFilename = Read-Host "What is the filename? "
-            $notPermissionLocations | Out-File ".\$npFilename.txt"
-        }
+    $scanLocation = Select-Folder
+    &$appFolderLocation\RiskView-CS.exe probe "file://$scanLocation"
     }
 }
 
 function checkaccess ($Folder) {
-    $script:notPermissionLocations = @()
-    $user = $([Environment]::UserName)
-    $permission = (Get-Acl $Folder).Access | ?{$_.IdentityReference -match $User} | Select IdentityReference,FileSystemRights
-    if (-Not($permission)) {
-        write-host "not permission $Folder"
-        $script:notPermissionLocations += $Folder
-        }
+    # $script:notPermissionLocations = @()
+    # $user = $([Environment]::UserName)
+    # $permission = (Get-Acl -LiteralPath $Folder -ErrorAction SilentlyContinue).Access | ?{$_.IdentityReference -match $User} | Select IdentityReference,FileSystemRights
+    # if (-Not($permission)) {
+    #     write-host "not permission $Folder"
+    #     $script:notPermissionLocations += $Folder
+    #     }
 }
 
 function Select-File ($filter) {
@@ -444,6 +462,49 @@ function Select-Folder {
     $browse.Dispose()
 }
 
+function collectBuffer ($line) {
+    if ($line -like "*Completed analysing batch.*") {
+        Write-Host "Done!"
+        $script:bufferLoop = $False
+        Break
+    }
+
+    if ($procfileRegex.matches($line).success) {
+        # Get appropriate parsing
+        $thread = ($line.split()[2]).substring($line.split()[2].length-1)
+        $filenumber = $line.split()[9]
+        # Turning the multi line filepath with space, from splitting, into one line
+        if ($line.split().length -gt 14) {
+            $FilePath = $line.split()[13]
+            for ($i=14;$i -lt $line.split().length-1;$i++) {
+                $FilePath += " " + $line.split()[$i]
+            }
+            $filePath = $FilePath.TrimEnd(".")
+        } else {$filepath = $line.split()[13].TrimEnd(".")}
+        $filename = $filePath.split("//")[$filePath.split("//").length-1].TrimEnd(".")
+
+        # Replace file in buffer if the thread matches
+        if ($buffertable | where {$_.Thread -eq $thread}) {
+            $script:buffertable | where {$_.Thread -eq $thread} | foreach {
+                $_.Filename = $Filename;
+                $_.Filenumber = $filenumber;
+                $_.FilePath = $filepath
+            }
+
+        # If the thread doesnt exist add the file normally
+        } else {
+            [void]$script:buffertable.Rows.Add(
+                $thread,
+                $filenumber,
+                $filename,
+                $filepath
+            )
+        }
+    }
+    cls
+    $buffertable | sort-object thread |Format-Table
+}
+
 # This function checks that the RiskView default files/folders are there
 function checkRiskViewFiles {
 
@@ -484,7 +545,8 @@ $ChoiceArrayDesc = [ordered]@{
         "Never" = "This will just tail the log from the last line, not showing the log previous to the last line.";
         "All" = "This will display the whole log and then tail it.";
         "RAM Usage" = "This will tail the log for the RAM usage.";
-        "Current File" = "This will tail the log only displaying the current file being processed and any excluded files."
+        "Current File" = "This will tail the log only displaying the current file being processed and any excluded files.";
+        "Thread Buffer" = "This shows the current file on each thread"
     };
 
     "Search" = [ordered]@{
@@ -985,6 +1047,13 @@ $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Pri
 
 # Runs on startup
 checkRiskViewFiles
+$buffertable = New-Object system.Data.DataTable "RiskView Thread Buffer"
+[void]$buffertable.Columns.Add("Thread")
+[void]$buffertable.Columns.Add("FileNumber")
+[void]$buffertable.Columns.Add("Filename")
+[void]$buffertable.Columns.Add("FilePath")
+[regex]$procfileRegex = ".* Processing file: [0-9]* .*"
+
 
 # This is the user main input loop, can only exit the loop with b
 while ($userChoice -ne "b") {
