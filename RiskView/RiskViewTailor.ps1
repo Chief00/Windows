@@ -4,6 +4,8 @@ $userLogFile = ""
 $userappFolderLocation = ""
 $userAppData = ""
 
+$gitURL = "https://raw.githubusercontent.com/Chief00/Windows/master/RiskView/RiskViewTailor.ps1"
+
 if ($userLogFile -eq "") {
     $logFile = "C:\Users\$([Environment]::UserName)\AppData\Local\Temp\riskview-cs.log"
 } else {$logFile = $userLogFile}
@@ -113,6 +115,9 @@ function userChoicesList ($title, $type) {
         }
         Write-Host "[$i]" $_.key -Foregroundcolor $accessColour
         $i += 1
+    }
+    if ($updateAvailable) {
+        Write-host "[$i]" "Update Tailor"
     }
     Write-Host "[?] Help"
     $choice = Read-Host "`n`nWhat do you choose? "
@@ -492,8 +497,13 @@ function collectBuffer ($line) {
 }
 
 function checkUpdates {
+    $nextVersion = (Invoke-webrequest -URI $gitURL).Content.split()[2]
 
-
+    if ($nextVersion -gt $currentVersion) {
+        printLogo
+        write-host "New version of RiskView Tailor available"
+        $script:updateAvailable = $true
+    }
 }
 
 # This function checks that the RiskView default files/folders are there
@@ -1037,6 +1047,7 @@ $userChoice = ""
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 
 # Runs on startup
+checkUpdates
 checkRiskViewFiles
 $buffertable = New-Object system.Data.DataTable "RiskView Thread Buffer"
 [void]$buffertable.Columns.Add("Thread")
