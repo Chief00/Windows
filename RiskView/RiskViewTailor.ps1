@@ -1,4 +1,4 @@
-,
+$currentVersion = "1.0.0"
 # These are the locations of the RiskView files which the user can specify, shouldnt have to.
 $userLogFile = ""
 $userappFolderLocation = ""
@@ -26,7 +26,7 @@ Write-Host "
         /_/|_/_/___/_/\_\|___/_/\__/|__,__/
         /_  __/__ _(_) /___ ____
          / / / _ '/ / / ,  ) __/
-        /_/  \_,_/_/_/\___/_/
+        /_/  \_,_/_/_/\___/_/       V$currentVersion
 
 
 "}
@@ -489,6 +489,11 @@ function collectBuffer ($line) {
     }
     cls
     $buffertable | sort-object thread |Format-Table
+}
+
+function checkUpdates {
+
+
 }
 
 # This function checks that the RiskView default files/folders are there
