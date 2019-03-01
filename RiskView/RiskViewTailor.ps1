@@ -57,26 +57,12 @@ function choiceExceptions ($choice, $subChoice = "FALSE", $subSubChoice = "FALSE
         choiceHelp "Main Menu"
         continue
     }
-    if ($choice -eq "Search") {
-        # Runs help function for search
-        if ($subChoice -eq "?") {
-            choiceHelp $choice
-            continue
-        }
-    }
-    if ($choice -eq "Run App") {
-        # Runs help function for run app
-        if ($subChoice -eq "?") {
-            choiceHelp $choice
-            continue
-        }
+    # Run appropriate help from any part of script
+    if ($subChoice -eq "?") {
+        choiceHelp $choice
+        Continue
     }
     if ($choice -eq "Options") {
-        # Runs help function for options
-        if ($subChoice -eq "?") {
-            choiceHelp $choice
-            continue
-        }
         # Throws "error" for trying to run a function on a non existant filepath
         if (($subChoice -eq "Current RAM") -or ($subChoice -eq "Change RAM Allowance") -or ($subChoice -eq "Reset RAM") -AND (-Not(Test-Path $configFile))) {
             cls
