@@ -1,4 +1,4 @@
-$currentVersion = "1.0.0"
+[string]$currentVersion = "1.0.0" 
 # These are the locations of the RiskView files which the user can specify, shouldnt have to.
 $userLogFile = ""
 $userappFolderLocation = ""
@@ -115,9 +115,6 @@ function userChoicesList ($title, $type) {
         }
         Write-Host "[$i]" $_.key -Foregroundcolor $accessColour
         $i += 1
-    }
-    if ($updateAvailable) {
-        Write-host "[$i]" "Update Tailor"
     }
     Write-Host "[?] Help"
     $choice = Read-Host "`n`nWhat do you choose? "
@@ -497,12 +494,12 @@ function collectBuffer ($line) {
 }
 
 function checkUpdates {
-    $nextVersion = (Invoke-webrequest -URI $gitURL).Content.split()[2]
+    [string]$nextVersion = (Invoke-webrequest -URI $gitURL).Content.split()[2]
 
-    if ($nextVersion -gt $currentVersion) {
+    if ($nextVersion -eq $currentVersion) {
         printLogo
         write-host "New version of RiskView Tailor available"
-        $script:updateAvailable = $true
+        start-sleep -s 2
     }
 }
 
