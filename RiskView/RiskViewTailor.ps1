@@ -1,4 +1,4 @@
-[string]$currentVersion = "1.0.0"
+[string]$currentVersion = "0.0.0"
 # These are the locations of the RiskView files which the user can specify, shouldnt have to.
 $userLogFile = ""
 $userappFolderLocation = ""
@@ -495,6 +495,7 @@ function collectBuffer ($line) {
 
 function checkUpdates {
     [string]$nextVersion = (Invoke-webrequest -URI $gitURL).Content.split("\""")[1]
+    $downloadURL = "https://raw.githubusercontent.com/Chief00/Windows/master/RiskView/Updating.ps1"
 
     if ($nextVersion -gt $currentVersion) {
         printLogo
