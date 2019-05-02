@@ -91,7 +91,7 @@ function choiceExceptions ($choice, $subChoice = "FALSE", $subSubChoice = "FALSE
 }
 
 # This function displays the choices and gets the users input
-function userChoicesList ($title, $type) {
+function userChoicesList ($title, $choicelist, $type=$null) {
 
     cls
     printLogo
@@ -107,7 +107,7 @@ function userChoicesList ($title, $type) {
     Write-Host `n$title `n
     # Displays options and if they you dont have admin display as red for ones you need access to run
     $i = 0
-    $choiceArrayDesc[$type].GetEnumerator() | ForEach-Object{
+    $choicelist[$type].GetEnumerator() | ForEach-Object{
         if (($_.value -Match "Requires Administrator Access") -AND (-Not($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)))) {
             $accessColour = "Red"
         } else {
@@ -119,8 +119,8 @@ function userChoicesList ($title, $type) {
     Write-Host "[?] Help"
     $choice = Read-Host "`n`nWhat do you choose? "
     # Returns the choice as its name (string)
-    if ((0..$choiceArrayDesc[$type].Count -Contains $choice) -AND ($choice -ne "")) {
-        $output = $ChoiceArrayDesc[$type].keys | select -Index $choice
+    if ((0..$choicelist[$type].Count -Contains $choice) -AND ($choice -ne "")) {
+        $output = $choicelist[$type].keys | select -Index $choice
         return $output
     } else {
         return $choice
@@ -160,7 +160,7 @@ function mainChoices ($choice) {
     if ($choice -eq "Run App") {
         $subChoice = ""
         while ($subChoice -ne "b") {
-            $subChoice = userChoicesList "How would you like to run the app: " $choice
+            $subChoice = userChoicesList "How would you like to run the app: " $ChoiceArrayDesc $choice
             choiceExceptions $choice $subChoice
             runAppChoices $subChoice
         }
@@ -168,7 +168,7 @@ function mainChoices ($choice) {
 
     if ($choice -eq "Tailer") {
         while ($subchoice -ne "b") {
-            $subChoice = userChoicesList "How would you like to tail: " $choice
+            $subChoice = userChoicesList "How would you like to tail: " $ChoiceArrayDesc $choice
             choiceExceptions $choice $subChoice
             tailerChoices $subChoice
         }
@@ -177,7 +177,7 @@ function mainChoices ($choice) {
     if ($choice -eq "Search") {
         $subChoice = ""
         while ($subChoice -ne "b") {
-            $subChoice = userChoicesList "How do you want to search: " $choice
+            $subChoice = userChoicesList "How do you want to search: " $ChoiceArrayDesc $choice
             choiceExceptions $choice $subChoice
             searchChoices $subChoice
         }
@@ -187,7 +187,7 @@ function mainChoices ($choice) {
     if ($choice -eq "Options") {
         $subChoice = ""
         while ($subChoice -ne "b") {
-            $subChoice = userChoicesList "What options do you want to change:  " $choice
+            $subChoice = userChoicesList "What options do you want to change:  " $ChoiceArrayDesc $choice
             choiceExceptions $choice $subChoice
             optionsChoices $subChoice
         }
@@ -211,7 +211,7 @@ function mainChoices ($choice) {
     if ($choice -eq "Tools") {
         $subChoice = ""
         while ($subChoice -ne "b") {
-            $subChoice = userChoicesList "What tools do you want to use:  " $choice
+            $subChoice = userChoicesList "What tools do you want to use:  " $ChoiceArrayDesc $choice
             choiceExceptions $choice $subChoice
             toolsChoices $subChoice
         }
@@ -222,7 +222,7 @@ function mainChoices ($choice) {
 function tailerChoices ($choice) {
 
     if ($choice -eq "App Opened") {
-        get-content $logFile -Wait -Tail ((select-string $logFile -Pattern ":" | select-object -ExpandProperty 'LineNumber' -Last 1) - (select-string $logFile -Pattern "RiskView CS Version" | select-object -ExpandProperty 'LineNumber' -Last 1)+1)
+        get-content $logFile -Wait -Tail ((select-string $logFile -Pattern ":" | select-object -ExpandProperty 'LineNumber' -Last 1) - (select-string $logFile -Pattern "Using base directory" | select-object -ExpandProperty 'LineNumber' -Last 1)+2)
     }
 
     if ($choice -eq "Last Gather") {
@@ -359,6 +359,10 @@ function optionsChoices ($choice) {
         }
         Read-Host "Press Enter to continue"
     }
+
+    if ($choice -eq "Change Product") {
+
+    }
 }
 
 function toolsChoices ($choice) {
@@ -371,30 +375,41 @@ function toolsChoices ($choice) {
     if ($choice -eq "Get RiskView Files") {
 
         get-childitem $appFolderLocation -recurse | % {
-            $_.FullName >> "RiskViewFileList.txt"
+            $filehash = (get-filehash $_.FullName -Algorithm MD5).hash
+            write-host $_.FullName $filehash
+            $filehash >> RiskViewFileList.txt
         }
         Write-Host "Done!" -Foregroundcolor "Green"
         Start-Sleep -s 2
+        read-host "  "
     }
 
     if ($choice -eq "Check RiskView Files") {
         $FilesFoundCount = 0
-        Get-Content (Select-File 'Text files (*.txt)|*.txt' $pwd) | ForEach-Object {
-            if (-Not(Test-Path $_)) {
-                Write-Host "File Not Found: "$_
+        [string[]]$arrayFromHashFile = Get-Content -Path (Select-File 'Text files (*.txt)|*.txt' $pwd)
+        $arrayFromHashFile = $arrayFromHashFile.Split('',[System.StringSplitOptions]::RemoveEmptyEntries)
+
+        # Not working
+        get-childitem $appFolderLocation -recurse | % {
+            $filehash = (get-filehash $_.FullName -Algorithm MD5).hash
+            if (-NOT($arrayFromHashFile -contains $filehash) -AND ($filehash -ne $null)) {
+                write-host "File Not Found: $_"
+            } elseif ($arrayFromHashFile -contains $filehash) {
                 $FilesFoundCount += 1
             }
         }
-        if ($FilesFoundCount -eq 0) {
+
+        # Add file not found function to find the file with that hash based of index(?)
+        if ($FilesFoundCount -eq $arrayFromHashFile.length) {
             Write-Host "All files are correct!" -Foregroundcolor "Green"
             Start-Sleep -s 2
-        }elseif ($FilesFoundCount -gt 0) {
+        }elseif ($FilesFoundCount -ne $arrayFromHashFile.length) {
             $repair = Read-Host "Do you want to repair (y/n)"
             if ($repair -match "[Yy]") {
                 if ($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
                     upgrade
                 }else {
-                    write-host "Get Administrator Access"
+                    write-host "Get Administrator Access and upgrade"
                     Start-Sleep -s 2}
             }
         }
@@ -407,7 +422,7 @@ function toolsChoices ($choice) {
 
 function uninstall {
     $app = Get-WmiObject -Class Win32_Product | Where-Object {
-        $_.Name -match "RiskView-CS"
+        $_.Name -contains "RiskView-CS"
     }
     $app.Uninstall()
     rm $appData
@@ -485,6 +500,11 @@ function checkUpdates {
     }
 }
 
+function CheckDiffFileLocations {
+    # Loop through the array and check if the user has added any locations ie not empty strings
+    # if they have then update the global locations to that
+}
+
 # This function checks that the RiskView default files/folders are there
 function checkRiskViewFiles {
 
@@ -541,7 +561,8 @@ $ChoiceArrayDesc = [ordered]@{
         "Change RAM Allowance" = "This will change the amount of ram the app has access to.`n    Requires Administrator Access.";
         "Reset RAM" = "This will reset the ram of the app back to its default (3048 MB).`n    Requires Administrator Access.";
         "Uninstall" = "This will completely Uninstall the app removing all files and folders.`n    Requires Administrator Access.";
-        "Upgrade" = "Upgrade to a specified version.`n    Requires Administrator Access."
+        "Upgrade" = "Upgrade to a specified version.`n    Requires Administrator Access.";
+        "Change Product" = "Change which product the tailor works for."
     };
 
     "Tools" = [ordered]@{
@@ -552,6 +573,43 @@ $ChoiceArrayDesc = [ordered]@{
     }
 }
 
+# All the products and their filepaths
+$ProductArrayLocations = [ordered]@{
+    "Client Scanner" = [ordered]@{
+        "LogFile" = "C:\Users\$([Environment]::UserName)\AppData\Local\Temp\riskview-cs.log";
+        "AppData" = "C:\Program Files\RiskView-CS";
+        "Program Files" = "C:\Users\$([Environment]::UserName)\AppData\Local\RiskView-CS"
+    };
+    "365" = [ordered]@{
+        "LogFile" = "";
+        "AppData" = "";
+        "Program Files" = ""
+    };
+    "Redaction" = [ordered]@{
+        "LogFile" = "";
+        "AppData" = "";
+        "Program Files" = ""
+    }
+}
+
+# User defined locations for the file locations
+$DiffProductArrayLocations = [ordered]@{
+    "Client Scanner" = [ordered]@{
+        "LogFile" = "";
+        "AppData" = "";
+        "Program Files" = ""
+    };
+    "365" = [ordered]@{
+        "LogFile" = "";
+        "AppData" = "";
+        "Program Files" = ""
+    };
+    "Redaction" = [ordered]@{
+        "LogFile" = "";
+        "AppData" = "";
+        "Program Files" = ""
+    }
+}
 
 # Sets the userchoice to zero to start the loop
 $userChoice = ""
@@ -566,7 +624,7 @@ checkRiskViewFiles
 # This is the user main input loop, can only exit the loop with b
 while ($userChoice -ne "b") {
     $userChoice = ""
-    $userChoice = userChoicesList "What would you like to do: " "Main Menu"
+    $userChoice = userChoicesList "What would you like to do: " $ChoiceArrayDesc "Main Menu"
     choiceExceptions $userChoice
     mainChoices $userChoice
 }
